@@ -75,4 +75,4 @@ The goal of this project is to simplify restaurant operations by providing an ef
 
 ## 👨‍💻 Author
 
-**Darshan Kaladiya**
+**Darshan Kaladiya** - www.linkedin.com/in/darshan-kaladiya-968093346
