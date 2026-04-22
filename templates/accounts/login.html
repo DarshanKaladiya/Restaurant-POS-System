@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - EasyServe{% endblock %}
+
+{% block body_class %}login-page-body{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <!-- Hero Branding Side -->
+    <div class="login-hero">
+        <div class="hero-content-box">
+            <span style="color: var(--primary); font-weight: 800; letter-spacing: 2px; text-transform: uppercase; font-size: 0.8rem;">Restaurant Management Platform</span>
+            <h1 class="hero-brand">EasyServe</h1>
+            <p style="font-size: 1.25rem; opacity: 0.8; max-width: 480px; line-height: 1.6; font-weight: 300;">
+                Empowering restaurant teams with smart data, real-time inventory, and effortless point-of-sale intelligence.
+            </p>
+            <div style="margin-top: 2.5rem; display: flex; gap: 1rem; opacity: 0.6;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-check-circle"></i> Live Sync</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-check-circle"></i> Inventory AI</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;"><i class="fas fa-check-circle"></i> Sales Intel</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Side -->
+    <div class="login-form-side">
+        <div class="login-box">
+            <div style="margin-bottom: 2.5rem;">
+                <h2 style="font-size: 2rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">Welcome back</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem;">Enter your credentials to access the station</p>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="auth-input-group">
+                    <label class="auth-label">Identification</label>
+                    <div class="auth-field-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" name="username" class="auth-input" placeholder="Username / ID" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="auth-input-group">
+                    <label class="auth-label">Security Key</label>
+                    <div class="auth-field-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" name="password" class="auth-input" placeholder="Enter Password" required autocomplete="current-password">
+                    </div>
+                </div>
+
+                {% if form.errors %}
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: 12px; color: #f87171; font-size: 0.85rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Authentication failed. Please check your credentials.
+                </div>
+                {% endif %}
+
+                <button type="submit" class="auth-submit-btn">
+                    SIGN IN TO STATION
+                </button>
+
+                <div style="margin-top: 2rem; text-align: center;">
+                    <p style="color: rgba(255, 255, 255, 0.2); font-size: 0.75rem; letter-spacing: 1px;">
+                        &copy; 2026 EASYSERVE PLATFORMS. SECURE ACCESS ONLY.
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

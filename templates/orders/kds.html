@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+
+{% block title %}Kitchen Intelligence Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;800&family=Outfit:wght@400;600;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<style>
+    :root {
+        --kds-bg: #030712;
+        --ticket-glass: rgba(30, 41, 59, 0.4);
+        --accent-primary: #6366f1;
+        --accent-warning: #f59e0b;
+        --accent-success: #10b981;
+        --accent-danger: #ef4444;
+        --text-dim: #94a3b8;
+    }
+
+    body {
+        background-color: var(--kds-bg);
+        font-family: 'Outfit', sans-serif;
+        color: white;
+        overflow-x: hidden;
+    }
+
+    .kds-container {
+        padding: 1.5rem;
+        min-height: 100vh;
+        background: radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
+    }
+
+    /* Station Filters */
+    .station-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    .station-tab {
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        color: var(--text-dim);
+        cursor: pointer;
+        font-weight: 800;
+        transition: all 0.3s;
+        border: 1px solid transparent;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+
+    .station-tab.active {
+        background: var(--accent-primary);
+        color: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .station-tab:hover:not(.active) {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    /* Productivity Banner */
+    .metrics-ribbon {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: var(--ticket-glass);
+        backdrop-filter: blur(20px);
+        padding: 1.25rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: var(--accent-primary);
+        width: var(--progress, 0%);
+        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .metric-label {
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 900;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Ticket Grid */
+    .ticket-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .order-ticket {
+        background: var(--ticket-glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 24px;
+        display: flex;
+        flex-direction: column;
+        animation: ticketEntrance 0.5s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        position: relative;
+    }
+
+    @keyframes ticketEntrance {
+        from { opacity: 0; transform: translateY(30px) scale(0.95); filter: blur(10px); }
+        to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    .ticket-header {
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .ticket-id {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--accent-primary);
+    }
+
+    .ticket-type {
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 0.3rem 0.8rem;
+        border-radius: 50px;
+        text-transform: uppercase;
+    }
+
+    .type-dine_in { background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); }
+    .type-takeaway { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+    .ticket-body {
+        padding: 1.5rem;
+        flex: 1;
+    }
+
+    .ticket-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem;
+        border-radius: 12px;
+        transition: background 0.3s;
+        border: 1px solid transparent;
+    }
+
+    .item-status-ready {
+        background: rgba(16, 185, 129, 0.05);
+        opacity: 0.6;
+        border: 1px solid rgba(16, 185, 129, 0.1);
+    }
+
+    .item-checkpoint {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: var(--accent-success);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    /* Dietary Icons */
+    .diet-dot { 
+        font-size: 0.5rem; 
+        margin-right: 4px;
+    }
+    .is-veg { color: #10b981; }
+    .is-non_veg { color: #ef4444; }
+    .is-egg { color: #f59e0b; }
+
+    .item-qty {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: var(--accent-primary);
+        background: rgba(99, 102, 241, 0.15);
+        padding: 0.1rem 0.5rem;
+        border-radius: 6px;
+        min-width: 1.8rem;
+        text-align: center;
+    }
+
+    .item-details { flex: 1; }
+
+    .item-name {
+        font-size: 1.15rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .item-note {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        background: rgba(255,255,255,0.03);
+        padding: 0.6rem;
+        border-radius: 12px;
+        margin-top: 0.5rem;
+        border-left: 2px solid var(--accent-warning);
+    }
+
+    .ticket-footer {
+        padding: 1rem 1.5rem 1.5rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 1rem;
+        border: none;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-fire { background: #6366f1; color: white; box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.3); }
+    .btn-fire:hover { transform: translateY(-3px); background: #4f46e5; }
+    
+    .btn-ready { background: #10b981; color: white; box-shadow: 0 8px 16px -4px rgba(16, 185, 129, 0.3); }
+    .btn-ready:hover { transform: translateY(-3px); background: #059669; }
+    
+    .btn-serve { background: #818cf8; color: white; box-shadow: 0 8px 16px -4px rgba(129, 140, 248, 0.3); }
+    .btn-serve:hover { transform: translateY(-3px); background: #6366f1; }
+
+    .ticket-timer {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0,0,0,0.3);
+        padding: 0.3rem 0.6rem;
+        border-radius: 8px;
+    }
+
+    .critical-30 { border: 2px solid rgba(239, 68, 68, 0.5); animation: pulseCritical 2s infinite; }
+
+    @keyframes pulseCritical {
+        0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+        50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.3); }
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        height: 60vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kds-container">
+    <!-- Station Filters -->
+    <div class="station-tabs">
+        <a href="?station=all" class="station-tab {% if selected_station == 'all' %}active{% endif %}">ALL STATIONS</a>
+        <a href="?station=kitchen" class="station-tab {% if selected_station == 'kitchen' %}active{% endif %}">MAIN KITCHEN</a>
+        <a href="?station=bar" class="station-tab {% if selected_station == 'bar' %}active{% endif %}">BAR / DRINKS</a>
+        <a href="?station=tandoor" class="station-tab {% if selected_station == 'tandoor' %}active{% endif %}">TANDOOR</a>
+        <a href="?station=pantry" class="station-tab {% if selected_station == 'pantry' %}active{% endif %}">PANTRY</a>
+    </div>
+
+    <!-- Productivity Banner -->
+    <div class="metrics-ribbon" hx-get="{{ request.path }}?station={{ selected_station }}" hx-trigger="every 5s" hx-select=".metrics-ribbon" hx-swap="outerHTML">
+        <div class="metric-card">
+            <span class="metric-label">Incoming Orders</span>
+            <span class="metric-value">{{ new_count }}</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">In Preparation</span>
+            <span class="metric-value">{{ prep_count }}</span>
+        </div>
+        <div class="metric-card" style="--progress: {{ load_percentage }}%">
+            <span class="metric-label">Kitchen Load</span>
+            <span class="metric-value">{{ capacity_label }}</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Avg Prep Time</span>
+            <span class="metric-value">{{ avg_prep_time }}</span>
+        </div>
+    </div>
+
+    <!-- Real-time Grid Polling -->
+    <div class="ticket-grid" 
+         hx-get="{{ request.path }}?station={{ selected_station }}" 
+         hx-trigger="every 5s" 
+         hx-swap="innerHTML"
+         id="main-grid">
+        {% include 'orders/includes/kds_grid.html' %}
+    </div>
+</div>
+
+<audio id="new-order-sound" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
+
+<script>
+async function toggleItemStatus(itemId, newStatus) {
+    try {
+        const response = await fetch(`/api/orders/update_item_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ item_id: itemId, status: newStatus })
+        });
+        if (response.ok) {
+            htmx.trigger('#main-grid', 'refresh');
+        }
+    } catch (err) { console.error(err); }
+}
+
+async function changeOrderStatus(orderId, newStatus) {
+    try {
+        const response = await fetch(`/api/orders/${orderId}/update_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+        if (response.ok) {
+            htmx.trigger('#main-grid', 'refresh');
+        }
+    } catch (err) { console.error(err); }
+}
+
+function updateTimers() {
+    document.querySelectorAll('.ticket-timer').forEach(timer => {
+        const start = new Date(timer.dataset.start);
+        const diff = Math.floor((new Date() - start) / 1000);
+        const mins = Math.floor(diff / 60);
+        const secs = diff % 60;
+        timer.querySelector('.elapsed').innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+        
+        const card = timer.closest('.order-ticket');
+        if (mins >= 30) {
+            card.classList.add('critical-30');
+        }
+    });
+}
+
+setInterval(updateTimers, 1000);
+updateTimers();
+
+// Listen for HTMX events to re-init timers
+document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+    updateTimers();
+});
+</script>
+{% endblock %}

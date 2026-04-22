@@ -1,0 +1,1305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Digital Menu - EasyServe{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --glass-bg: rgba(15, 23, 42, 0.75);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --accent: #f59e0b; /* Golden Amber */
+        --accent-dark: #b45309;
+        --surface: #0B0F19; /* Deep space */
+        --item-card-bg: #151a2a;
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif;
+        background-color: var(--surface);
+        color: #f8fafc;
+    }
+
+    .menu-wrapper {
+        min-height: 100vh;
+        padding-bottom: 6rem;
+    }
+
+    /* Luxury Hero */
+    .hero-container {
+        position: relative;
+        height: 60vh;
+        min-height: 400px;
+        background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.3)), url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2070&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        margin-bottom: -50px;
+        z-index: 1;
+    }
+
+    .hero-content h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(2.5rem, 8vw, 4.5rem);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .hero-content p {
+        font-size: 1.25rem;
+        font-weight: 300;
+        opacity: 0.9;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Dynamic Island Status Bar */
+    .status-floating-bar {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        width: auto;
+        min-width: 250px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(16px);
+        color: white;
+        padding: 0.8rem 2rem;
+        border-radius: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1.5rem;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: none; /* Shown via JS */
+        flex-direction: column;
+        border: 1px solid var(--accent);
+    }
+
+    .mini-tracker-icons {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .mini-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        opacity: 0.3;
+        transition: all 0.3s;
+    }
+    .mini-step.active { opacity: 1; color: var(--accent); }
+    .mini-step i { font-size: 0.9rem; }
+    .mini-step span { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+
+    .track-pill-btn {
+        background: var(--accent);
+        color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        animation: subtlePulse 2s infinite;
+    }
+
+    .status-floating-bar:hover {
+        transform: translateX(-50%) scale(1.05);
+        background: var(--surface);
+    }
+
+    /* Smart Category Rail */
+    .sticky-nav {
+        position: sticky;
+        top: 64px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--glass-border);
+        z-index: 999;
+        padding: 1rem 0;
+        transition: all 0.3s;
+    }
+
+    .nav-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0 1rem;
+    }
+
+    .search-discovery {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .premium-search {
+        flex: 1;
+        position: relative;
+    }
+
+    .premium-search input {
+        width: 100%;
+        padding: 0.8rem 1rem 0.8rem 3rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.2);
+        color: white;
+        font-family: inherit;
+        font-weight: 600;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    .premium-search i {
+        position: absolute;
+        left: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    .cat-chips {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 0.25rem;
+    }
+    .cat-chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+        padding: 0.6rem 1.25rem;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #94a3b8;
+        border-radius: 50px;
+        white-space: nowrap;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .chip.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+
+    /* Menu Cards */
+    .menu-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 4rem;
+    }
+
+    /* Skeleton Loading & Animations */
+    @keyframes shimmer {
+        0% { background-position: -468px 0 }
+        100% { background-position: 468px 0 }
+    }
+
+    .skeleton {
+        background: #f6f7f8;
+        background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+        background-repeat: no-repeat;
+        background-size: 800px 100%;
+        animation: shimmer 1.5s infinite linear;
+    }
+
+    .reveal-card {
+        animation: cardEntrance 0.6s ease-out backwards;
+        animation-delay: calc(var(--i) * 0.05s);
+    }
+
+    @keyframes cardEntrance {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Premium Placeholder */
+    .premium-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        color: #94a3b8;
+    }
+
+    .placeholder-icon {
+        font-size: 3rem;
+        opacity: 0.2;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));
+    }
+
+    .section-header {
+        margin-bottom: 2rem;
+    }
+
+    .section-header h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-header h2::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, #e2e8f0, transparent);
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 2rem;
+    }
+
+    .luxury-card {
+        background: var(--item-card-bg);
+        border-radius: 32px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .luxury-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 30px 60px rgba(15, 23, 42, 0.1);
+        border-color: var(--accent);
+    }
+
+    .img-wrapper {
+        position: relative;
+        height: 240px;
+        overflow: hidden;
+    }
+
+    .img-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s;
+    }
+
+    .luxury-card:hover .img-wrapper img {
+        transform: scale(1.1);
+    }
+
+    .diet-tag {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #ccc;
+        z-index: 50;
+    }
+
+    .diet-tag.is-veg { border-color: #10b981; }
+    .diet-tag.is-veg i { color: #10b981; }
+
+    .diet-tag.is-nonveg { border-color: #ef4444; }
+    .diet-tag.is-nonveg i { color: #ef4444; }
+
+    .diet-tag.is-egg { border-color: #f59e0b; }
+    .diet-tag.is-egg i { color: #f59e0b; }
+
+    .diet-tag i { font-size: 12px; }
+
+    .card-body {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .item-meta h3 {
+        font-size: 1.35rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        color: white;
+    }
+
+    .item-meta p {
+        font-size: 0.95rem;
+        color: #64748b;
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+
+    .price {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--accent);
+    }
+
+    .add-btn {
+        background: var(--surface);
+        color: white;
+        border: none;
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .add-btn:hover { background: var(--accent); transform: rotate(90deg); }
+
+    /* Cart FAB & Sheet */
+    .cart-btn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--surface);
+        color: white;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        z-index: 1000;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid rgba(255,255,255,0.1);
+        transform: scale(0);
+    }
+    .cart-btn.active { transform: scale(1); }
+
+    .b-count {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: var(--accent);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 800;
+        border: 3px solid var(--surface);
+    }
+
+    .side-sheet {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        visibility: hidden;
+    }
+    .side-sheet.active { visibility: visible; }
+
+    .sheet-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        transition: 0.3s;
+    }
+    .side-sheet.active .sheet-backdrop { opacity: 1; }
+
+    .sheet-panel {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--item-card-bg);
+        border-radius: 40px 40px 0 0;
+        height: 85vh;
+        transform: translateY(100%);
+        transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        display: flex;
+        flex-direction: column;
+        padding-bottom: env(safe-area-inset-bottom);
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .side-sheet.active .sheet-panel { transform: translateY(0); }
+
+    .sheet-header {
+        padding: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sheet-body { flex: 1; overflow-y: auto; padding: 2rem; }
+    .sheet-footer { padding: 2rem; background: var(--surface); border-top: 1px solid rgba(255,255,255,0.1); }
+
+    .confirm-btn {
+        width: 100%;
+        background: var(--surface);
+        color: white;
+        border: none;
+        padding: 1.25rem;
+        border-radius: 20px;
+        font-size: 1.1rem;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Table info overlay */
+    .table-banner {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        padding: 1rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    .service-selector {
+        display: inline-flex;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(20px);
+        padding: 0.4rem;
+        border-radius: 50px;
+        border: 1px solid rgba(255,255,255,0.2);
+        margin-top: 1.5rem;
+    }
+
+    .service-option {
+        padding: 0.6rem 1.5rem;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+        border: none;
+        background: transparent;
+        color: rgba(255,255,255,0.7);
+    }
+
+    .service-option.active {
+        background: white;
+        color: var(--surface);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* Checkout & QR Modals */
+    .checkout-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+    .checkout-modal.active { display: flex; }
+    
+    .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(12px);
+    }
+    
+    .modal-container {
+        position: relative;
+        background: var(--item-card-bg);
+        width: 100%;
+        max-width: 450px;
+        border-radius: 32px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPop {
+        from { transform: scale(0.9) translateY(20px); opacity: 0; }
+        to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .modal-body { padding: 2.5rem; }
+    
+    .form-group { margin-bottom: 1.5rem; }
+    .form-group label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: white;
+    }
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.2);
+        color: white;
+        font-family: inherit;
+        font-weight: 600;
+        outline: none;
+    }
+    .form-group input:focus { border-color: var(--accent); }
+
+    .payment-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    .pay-btn {
+        padding: 2rem 0.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.05);
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6));
+        color: #94a3b8;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 800;
+        font-size: 0.95rem;
+    }
+    .pay-btn:hover {
+        transform: translateY(-2px);
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+        border-color: rgba(255,255,255,0.1);
+        color: white;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    }
+    .pay-btn.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+        transform: translateY(-2px);
+    }
+    .pay-btn i { font-size: 1.75rem; margin-bottom: 0.75rem; }
+
+    /* Removed redundant welcome-modal specific visibility logic to use global active class */
+    .welcome-card {
+        position: relative;
+        z-index: 10;
+        background: #1e293b;
+        padding: 2.5rem 1.5rem;
+        border-radius: 30px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        max-width: 400px;
+        width: 100%;
+        animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .welcome-btn {
+        width: 100%;
+        padding: 1.25rem;
+        background: var(--accent);
+        border: none;
+        border-radius: 16px;
+        color: white;
+        font-weight: 800;
+        font-size: 1rem;
+        margin-top: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .welcome-btn:active { transform: scale(0.98); }
+
+    .qr-container {
+        text-align: center;
+        padding: 1rem;
+    }
+    .qr-image {
+        width: 200px;
+        height: 200px;
+        margin: 1rem auto;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+    }
+    .qr-timer {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 1rem;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+{% if request.user.is_authenticated and request.user.role in 'admin,captain,waiter,cashier' %}
+<div style="background: var(--accent); color: white; padding: 0.5rem; text-align: center; font-weight: 800; font-size: 0.8rem; letter-spacing: 2px;">
+    <i class="fas fa-user-shield"></i> STAFF MODE ACTIVE
+</div>
+{% endif %}
+<div class="menu-wrapper">
+    <!-- Hero -->
+    <div class="hero-container">
+        <div class="hero-content">
+            {% if table %}
+                <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); display: inline-block; padding: 0.5rem 1.5rem; border-radius: 50px; font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.2);">
+                    TABLE {{ table.name }} • {{ table.section.name }}
+                </div>
+            {% endif %}
+            <h1>Dining Made Easy</h1>
+            <p>Your favorite dishes are just a few taps away. Experience the ease of EasyServe.</p>
+            
+            <div class="service-selector">
+                <button class="service-option {% if not table %}active{% endif %}" id="opt-takeaway" onclick="setServiceType('takeaway')">
+                    <i class="fas fa-bag-shopping mr-2"></i> TAKEAWAY
+                </button>
+                <button class="service-option {% if table %}active{% endif %}" id="opt-dine_in" onclick="setServiceType('dine_in')">
+                    <i class="fas fa-utensils mr-2"></i> DINE-IN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Order Floating Tracker -->
+    {% if active_order %}
+    <div id="active-order-tracker" class="status-floating-bar" style="display: flex;">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-spinner fa-spin" style="color: var(--accent);"></i>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.7rem; opacity: 0.7; font-weight: 600; text-transform: uppercase;">Current Status</span>
+                    <span style="font-weight: 800; font-size: 0.9rem;" id="current-order-status">{{ active_order.get_status_display }}</span>
+                </div>
+            </div>
+            
+            <a href="{% url 'orders:live_tracker' active_order.tracking_uuid %}" class="track-pill-btn">
+                <i class="fas fa-satellite-dish"></i>
+                LIVE TRACK
+            </a>
+        </div>
+
+        <div class="mini-tracker-icons">
+            <div class="mini-step" id="mstep-placed">
+                <i class="fas fa-receipt"></i>
+                <span>Placed</span>
+            </div>
+            <div class="mini-step" id="mstep-preparing">
+                <i class="fas fa-fire"></i>
+                <span>Cooking</span>
+            </div>
+            <div class="mini-step" id="mstep-ready">
+                <i class="fas fa-bell"></i>
+                <span>Ready</span>
+            </div>
+            <div class="mini-step" id="mstep-served">
+                <i class="fas fa-check-double"></i>
+                <span>Served</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sticky Navigation -->
+    <div class="sticky-nav">
+        <div class="nav-inner">
+            <div class="search-discovery">
+                <div class="premium-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="menu-search" placeholder="Looking for something specific?" onkeyup="filterItems()">
+                </div>
+                <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); height: 100%; padding: 0.8rem 1rem; border-radius: 16px; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 700;">
+                    <i class="fas fa-leaf" style="color: #10b981;"></i>
+                    <span class="d-none d-md-inline" style="color: white;">Veg Only</span>
+                    <input type="checkbox" id="veg-toggle" onchange="filterItems()">
+                </div>
+            </div>
+            <div class="cat-chips">
+                <div class="chip active" onclick="scrollToCat('all', this)">All Items</div>
+                {% for cat in categories %}
+                    <div class="chip" onclick="scrollToCat('cat-{{ cat.id }}', this)">{{ cat.name }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Sections -->
+    <div class="menu-container">
+        {% for cat in categories %}
+        <section id="cat-{{ cat.id }}" class="menu-section">
+            <div class="section-header">
+                <h2>{{ cat.name }}</h2>
+            </div>
+            <div class="grid">
+                {% for item in menu_items %}
+                    {% if item.category == cat %}
+                    <div class="luxury-card reveal-card" data-type="{{ item.item_type }}" style="--i: {{ forloop.counter0 }}">
+                        <div class="img-wrapper">
+                            {% if item.image %}
+                                <img src="{{ item.image.url }}" alt="{{ item.name }}" loading="lazy" class="skeleton">
+                            {% else %}
+                                <div class="premium-placeholder">
+                                    <i class="fas fa-utensils placeholder-icon"></i>
+                                    <span style="font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; opacity: 0.5;">GOURMET</span>
+                                </div>
+                            {% endif %}
+                            <div class="diet-tag {% if item.item_type == 'veg' %}is-veg{% elif item.item_type == 'egg' %}is-egg{% else %}is-nonveg{% endif %}">
+                                <i class="fa-solid fa-circle"></i>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="item-meta">
+                                <h3>{{ item.name }}</h3>
+                                <p>{{ item.description|default:"A special preparation featuring artisanal ingredients and house-made spices." }}</p>
+                            </div>
+                            <div class="card-footer">
+                                <div class="price">₹{{ item.base_price|floatformat:0 }}</div>
+                                <button class="add-btn" 
+                                        onclick="addToCart('{{ item.id|escapejs }}', '{{ item.name|escapejs }}', {{ item.base_price }})">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+
+    <!-- Cart Elements -->
+    <div class="cart-btn" id="cart-btn" onclick="toggleCart(true)">
+        <i class="fas fa-shopping-bag fa-xl"></i>
+        <div class="b-count" id="cart-badge">0</div>
+    </div>
+
+    <!-- Side Sheet Cart -->
+    <div class="side-sheet" id="side-sheet">
+        <div class="sheet-backdrop" onclick="toggleCart(false)"></div>
+        <div class="sheet-panel">
+            <div class="sheet-header">
+                <h2 style="margin:0; font-family: 'Playfair Display', serif; font-size: 1.75rem; color: white;">Your Selection</h2>
+                <button onclick="toggleCart(false)" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: white;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="sheet-body" id="cart-list">
+                <!-- Items injected here -->
+            </div>
+            <div class="sheet-footer">
+                {% if table %}
+                    <div class="table-banner" id="dine-in-info" style="display: {% if table %}flex{% else %}none{% endif %};">
+                        <i class="fas fa-chair"></i>
+                        Dining {% if table %}at Table {{ table.name }} ({{ table.section.name }}){% else %}at Table (Not Selected){% endif %}
+                    </div>
+                {% endif %}
+                <div class="table-banner" id="takeaway-banner" style="display: {% if not table %}flex{% else %}none{% endif %}; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #94a3b8;">
+                    <i class="fas fa-bag-shopping"></i>
+                    Preparing for Takeaway
+                </div>
+                <button class="confirm-btn" onclick="sendOrder()">
+                    <span>{% if active_order %}ADD TO EXISTING BILL{% else %}PLACE ORDER{% endif %}</span>
+                    <span id="final-total">₹0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Modal (Shown at Start) -->
+    <div class="checkout-modal" id="welcome-modal">
+        <div class="modal-overlay"></div>
+        <div class="welcome-card">
+            <div style="width: 70px; height: 70px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.5rem;">
+                <i class="fas fa-hand-wave"></i>
+            </div>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 0.5rem; color: white;">Welcome!</h2>
+            <p style="color: #94a3b8; margin-bottom: 2rem; font-size: 0.9rem;">Please enter your details to browse our exquisite menu.</p>
+            
+            <div class="form-group" style="text-align: left;">
+                <label style="color: #94a3b8; font-size: 0.75rem; letter-spacing: 1px;">YOUR NAME</label>
+                <input type="text" id="start-cust-name" placeholder="E.g. John Doe" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: white;">
+            </div>
+            <div class="form-group" style="text-align: left; margin-top: 1rem;">
+                <label style="color: #94a3b8; font-size: 0.75rem; letter-spacing: 1px;">MOBILE NUMBER</label>
+                <input type="tel" id="start-cust-phone" placeholder="E.g. 9876543210" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: white;">
+            </div>
+            
+            <button class="welcome-btn" onclick="startOrdering()">START BROWSING</button>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="checkout-modal" id="details-modal">
+        <div class="modal-overlay" onclick="closeCheckout()"></div>
+        <div class="modal-container">
+            <div class="modal-body">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 0.5rem;">Confirm Order</h2>
+                <p style="color: #64748b; margin-bottom: 2rem; font-size: 0.9rem;">Review your details and select payment method.</p>
+                
+                <div style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Ordering as</div>
+                    <div style="font-weight: 700;" id="display-order-name">-</div>
+                </div>
+                
+                <label style="font-weight: 700; display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">PAYMENT METHOD</label>
+                <div class="payment-grid">
+                    <button class="pay-btn active" id="pay-cash" onclick="setPayment('cash')">
+                        <i class="fas fa-money-bill-wave"></i>
+                        CASH
+                    </button>
+                    <button class="pay-btn" id="pay-upi" onclick="setPayment('upi')">
+                        <i class="fas fa-qrcode"></i>
+                        UPI
+                    </button>
+                    <button class="pay-btn" id="pay-card" onclick="setPayment('card')">
+                        <i class="fas fa-credit-card"></i>
+                        CARD
+                    </button>
+                    <input type="hidden" id="selected-payment" value="cash">
+                </div>
+
+                <div id="cash-notice" style="margin-top: 1.5rem; padding: 1rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; font-size: 0.85rem; color: var(--accent); font-weight: 600; display: block;">
+                    <i class="fas fa-info-circle"></i>
+                    Please proceed to the cashier for payment after placing order.
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="confirm-btn" style="flex: 1; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white;" onclick="closeCheckout()">
+                        CANCEL
+                    </button>
+                    <button class="confirm-btn" style="flex: 2; justify-content: center; background: var(--accent); color: white;" onclick="finalizeOrder()">
+                        CONFIRM & ORDER
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="checkout-modal" id="qr-modal">
+        <div class="modal-overlay" onclick="closeQR()"></div>
+        <div class="modal-container" style="max-width: 400px;">
+            <div class="modal-body qr-container">
+                <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 0.5rem;">Scan to Pay</h2>
+                <p style="color: #64748b; font-size: 0.9rem;">Use any UPI App to pay</p>
+                
+                <img src="{% static 'img/testing_qr.png' %}" alt="Payment QR" class="qr-image">
+                
+                <div style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;" id="qr-total">₹0</div>
+                
+                <div style="padding: 1rem; background: #f0fdf4; color: #166534; border-radius: 12px; font-size: 0.85rem; font-weight: 700;">
+                    <i class="fas fa-check-circle"></i>
+                    Order placed as "Awaiting Confirmation"
+                </div>
+
+                <p class="qr-timer">Please notify the waiter once paid.</p>
+                
+                <button class="confirm-btn" style="margin-top: 1.5rem; justify-content: center;" onclick="closeQR()">
+                    DONE
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Premium Success Screen (Post-Order) -->
+    <div class="checkout-modal" id="success-modal">
+        <div class="modal-overlay" onclick="closeSuccess()"></div>
+        <div class="modal-container">
+            <div class="modal-body" style="text-align: center;">
+                <div style="width: 80px; height: 80px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 1.5rem; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h1 style="font-family: 'Playfair Display', serif; margin-bottom: 0.5rem; color: white;">Order Confirmed!</h1>
+                <p style="color: #94a3b8; margin-bottom: 2rem;">Your delicious selections are being prepared.</p>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem;">
+                    <div style="font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 0.5rem;">Order Number</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);" id="success-ord-num">#CUST1234</div>
+                </div>
+
+                <a href="#" id="modal-track-link" class="confirm-btn" style="justify-content: center; background: var(--accent); color: white; animation: subtlePulse 2s infinite;">
+                    <i class="fas fa-satellite-dish" style="margin-right: 0.5rem;"></i>
+                    TRACK LIVE STATUS
+                </a>
+
+                <button class="confirm-btn" style="margin-top: 1rem; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: white;" onclick="closeSuccess()">
+                    CONTINUE BROWSING
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+    const tableId = "{{ table.id|default:'' }}";
+    const existingOrderId = "{{ active_order.id|default:'' }}";
+    const existingOrderType = "{{ active_order.order_type|default:'' }}";
+    const orderNumber = "{{ active_order.order_number|default:'' }}";
+    let selectedOrderType = (tableId && !existingOrderId) ? 'dine_in' : (existingOrderType || 'takeaway');
+    
+    // Check if user is staff mode
+    const isStaffMode = {% if request.user.is_authenticated and request.user.role in 'admin,captain,waiter,cashier' %}true{% else %}false{% endif %};
+
+
+    function setServiceType(type) {
+        selectedOrderType = type;
+        document.querySelectorAll('.service-option').forEach(opt => opt.classList.remove('active'));
+        const activeBtn = document.getElementById(`opt-${type}`);
+        if(activeBtn) activeBtn.classList.add('active');
+        updateCartLabel();
+    }
+
+    // Capture Customer Details Early
+    window.onload = function() {
+        if (!existingOrderId && !isStaffMode) {
+            const savedName = localStorage.getItem('customer_name');
+            const savedPhone = localStorage.getItem('customer_phone');
+            
+            if (!savedName || !savedPhone) {
+                document.getElementById('welcome-modal').classList.add('active');
+            } else {
+                // Pre-fill hidden details if already saved
+                document.getElementById('display-order-name').innerText = savedName;
+            }
+        }
+    };
+
+    function startOrdering() {
+        const name = document.getElementById('start-cust-name').value;
+        const phone = document.getElementById('start-cust-phone').value;
+        
+        if (!name || phone.length < 10) {
+            alert("Please provide a valid name and phone number to continue.");
+            return;
+        }
+        
+        localStorage.setItem('customer_name', name);
+        localStorage.setItem('customer_phone', phone);
+        document.getElementById('display-order-name').innerText = name;
+        document.getElementById('welcome-modal').classList.remove('active');
+    }
+
+    function updateCartLabel() {
+        const btn = document.querySelector('.side-sheet .confirm-btn span:first-child');
+        if (!btn) return;
+        
+        if (existingOrderId && selectedOrderType === existingOrderType) {
+            btn.innerText = isStaffMode ? "SEND ADD-ON KOT" : "ADD TO EXISTING BILL";
+        } else {
+            if (isStaffMode) {
+                btn.innerText = "SEND DIRECT KOT";
+            } else {
+                btn.innerText = (selectedOrderType === 'dine_in') ? "CONFIRM DINE-IN ORDER" : "CONFIRM TAKEAWAY ORDER";
+            }
+        }
+    }
+
+    // Modal Controls
+    function setPayment(method) {
+        document.getElementById('selected-payment').value = method;
+        document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`pay-${method}`).classList.add('active');
+        document.getElementById('cash-notice').style.display = (method === 'cash') ? 'block' : 'none';
+    }
+
+    function closeCheckout() { document.getElementById('details-modal').classList.remove('active'); }
+    function closeQR() { 
+        document.getElementById('qr-modal').classList.remove('active');
+        window.location.reload(); 
+    }
+
+    function filterItems() {
+        const query = document.getElementById('menu-search').value.toLowerCase();
+        const vegOnly = document.getElementById('veg-toggle').checked;
+        const cards = document.querySelectorAll('.luxury-card');
+        cards.forEach(card => {
+            const name = card.querySelector('h3').innerText.toLowerCase();
+            const desc = card.querySelector('p').innerText.toLowerCase();
+            const type = card.dataset.type;
+            const matchesSearch = name.includes(query) || desc.includes(query);
+            const matchesVeg = !vegOnly || type === 'veg';
+            card.style.display = (matchesSearch && matchesVeg) ? 'flex' : 'none';
+        });
+    }
+
+    function scrollToCat(id, chip) {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        if (id === 'all') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+        const el = document.getElementById(id);
+        const y = el.getBoundingClientRect().top + window.pageYOffset - 150;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+
+    function addToCart(id, name, price) {
+        const item = cart.find(i => i.id === id);
+        if (item) item.qty++;
+        else cart.push({ id, name, price, qty: 1 });
+        updateUI();
+    }
+
+    function updateQty(id, delta) {
+        const item = cart.find(i => i.id === id);
+        if (item) {
+            item.qty += delta;
+            if (item.qty <= 0) cart = cart.filter(i => i.id !== id);
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        const totalQty = cart.reduce((acc, i) => acc + i.qty, 0);
+        document.getElementById('cart-btn').classList.toggle('active', totalQty > 0);
+        document.getElementById('cart-badge').innerText = totalQty;
+        const list = document.getElementById('cart-list');
+        list.innerHTML = '';
+        let total = 0;
+        cart.forEach(item => {
+            total += item.price * item.qty;
+            const row = document.createElement('div');
+            row.style.cssText = "display: flex; justify-content: space-between; align-items:center; margin-bottom: 1.5rem;";
+            row.innerHTML = `
+                <div>
+                    <div style="font-weight: 700; color: white;">${item.name}</div>
+                    <div style="font-size: 0.85rem; color: #94a3b8;">₹${item.price} each</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; background: rgba(0,0,0,0.2); padding: 0.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                    <button onclick="updateQty('${item.id}', -1)" style="width:28px; height:28px; border:none; border-radius:8px; background:rgba(255,255,255,0.1); color:white; font-weight:800; cursor:pointer;">-</button>
+                    <span style="font-weight: 800; min-width: 20px; text-align:center; color: white;">${item.qty}</span>
+                    <button onclick="updateQty('${item.id}', 1)" style="width:28px; height:28px; border:none; border-radius:8px; background:rgba(255,255,255,0.1); color:white; font-weight:800; cursor:pointer;">+</button>
+                </div>
+            `;
+            list.appendChild(row);
+        });
+        document.getElementById('final-total').innerText = '₹' + total;
+        if (totalQty === 0 && document.getElementById('side-sheet').classList.contains('active')) toggleCart(false);
+    }
+
+    function toggleCart(show) { document.getElementById('side-sheet').classList.toggle('active', show); }
+
+    // Stepped checkout
+    function sendOrder() {
+        if (cart.length === 0) return;
+        
+        // Bypass details if adding to bill OR if using Staff Mode
+        if ((existingOrderId && selectedOrderType === existingOrderType) || isStaffMode) {
+            finalizeOrder();
+        } else if (selectedOrderType === 'dine_in') {
+            // For Dine-in, just GO directly if we have name/phone from start
+            finalizeOrder();
+        } else {
+            // For Takeaway, ask for payment method
+            document.getElementById('display-order-name').innerText = localStorage.getItem('customer_name');
+            toggleCart(false);
+            document.getElementById('details-modal').classList.add('active');
+        }
+    }
+
+    async function finalizeOrder() {
+        let url = '/api/orders/';
+        let method = 'POST';
+        let payload = {};
+        const paymentMethod = document.getElementById('selected-payment').value;
+
+        if (existingOrderId) {
+            url = `/api/orders/${existingOrderId}/add_items/`;
+            payload = {
+                items: cart.map(i => ({ menu_item: i.id, quantity: i.qty, price: i.price }))
+            };
+        } else if (isStaffMode) {
+            // Staff bypassing guest collection form
+            payload = {
+                order_number: "STAFF" + Date.now(),
+                order_type: selectedOrderType,
+                table: selectedOrderType === 'dine_in' ? (tableId || null) : null,
+                guest_count: 1,
+                payment_method: 'cash',
+                customer_name: 'Walk-in / Staff',
+                customer_phone: '0000000000',
+                items: cart.map(i => ({ menu_item: i.id, quantity: i.qty, price: i.price }))
+            };
+        } else {
+            const name = localStorage.getItem('customer_name');
+            const phone = localStorage.getItem('customer_phone');
+            
+            if (!name || !phone) {
+                document.getElementById('welcome-modal').classList.add('active');
+                return;
+            }
+
+            payload = {
+                order_number: "CUST" + Date.now(),
+                order_type: selectedOrderType,
+                table: selectedOrderType === 'dine_in' ? (tableId || null) : null,
+                guest_count: 1,
+                payment_method: paymentMethod,
+                customer_name: name,
+                customer_phone: phone,
+                items: cart.map(i => ({ menu_item: i.id, quantity: i.qty, price: i.price }))
+            };
+        }
+
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(payload)
+            });
+
+            if (resp.ok) {
+                const data = await resp.json();
+                closeCheckout();
+                
+                if (paymentMethod === 'upi' && !existingOrderId) {
+                    document.getElementById('qr-total').innerText = '₹' + (data.total_amount || document.getElementById('final-total').innerText.replace('₹',''));
+                    document.getElementById('qr-modal').classList.add('active');
+                    cart = [];
+                    updateUI();
+                } else {
+                    // Show High-End Success Screen
+                    document.getElementById('success-ord-num').innerText = `#${data.order_number}`;
+                    if (data.tracking_uuid) {
+                        localStorage.setItem('last_tracking_id', data.tracking_uuid);
+                        document.getElementById('modal-track-link').href = `/track/${data.tracking_uuid}/`;
+                        // Redirect or show bar? Let's reload with specific track param to keep it clean
+                        setTimeout(() => {
+                           window.location.href = `/menu/?track=${data.tracking_uuid}`;
+                        }, 2000); // 2s delay so they see the success state
+                    }
+                    
+                    document.getElementById('success-modal').classList.add('active');
+                    cart = [];
+                    updateUI();
+                }
+            } else {
+                alert("Something went wrong. Please call a waiter.");
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function closeSuccess() { document.getElementById('success-modal').classList.remove('active'); }
+
+    function updateTrackingIcons(status) {
+        document.querySelectorAll('.mini-step').forEach(s => s.classList.remove('active'));
+        
+        const steps = ['placed', 'preparing', 'ready', 'served'];
+        let activeIdx = 0;
+        
+        switch(status) {
+            case 'draft':
+            case 'awaiting_confirmation':
+            case 'kot_sent': activeIdx = 0; break;
+            case 'preparing': activeIdx = 1; break;
+            case 'ready': activeIdx = 2; break;
+            case 'completed': 
+            case 'served': activeIdx = 3; break;
+        }
+        
+        for(let i=0; i<=activeIdx; i++) {
+            const stepId = `mstep-${steps[i]}`;
+            const el = document.getElementById(stepId);
+            if (el) el.classList.add('active');
+        }
+    }
+
+    if (orderNumber) {
+        const checkStatus = async () => {
+            try {
+                const resp = await fetch(`/api/orders/check_status/?order_number=${orderNumber}`);
+                const data = await resp.json();
+                document.getElementById('current-order-status').innerText = data.display_status;
+                updateTrackingIcons(data.status);
+
+                // Auto-hide bar if order is finished
+                if (['completed', 'cancelled'].includes(data.status)) {
+                    setTimeout(() => {
+                        const bar = document.getElementById('active-order-tracker');
+                        if (bar) bar.style.display = 'none';
+                        localStorage.removeItem('last_tracking_id');
+                    }, 3000); // 3-second delay so they see the 'Served' icon one last time
+                }
+            } catch (e) {}
+        };
+        checkStatus(); // Initial run
+        setInterval(checkStatus, 15000);
+    } else {
+        // Fallback: Check localStorage if no order was passed from server
+        const lastTrackId = localStorage.getItem('last_tracking_id');
+        const currentUrl = new URL(window.location.href);
+        if (lastTrackId && !currentUrl.searchParams.has('track') && !currentUrl.searchParams.has('table')) {
+            // Check if this last track ID is still active
+            (async () => {
+                try {
+                    const resp = await fetch(`/api/orders/check_status/?tracking_uuid=${lastTrackId}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (['completed', 'cancelled'].includes(data.status)) {
+                            localStorage.removeItem('last_tracking_id');
+                        } else {
+                            // Auto-load it!
+                            window.location.href = `/menu/?track=${lastTrackId}`;
+                        }
+                    }
+                } catch(e) {}
+            })();
+        }
+    }
+
+    // Initialize UI on Load
+    document.addEventListener('DOMContentLoaded', () => {
+        setServiceType(selectedOrderType);
+        updateCartLabel();
+    });
+
+</script>
+{% endblock %}

@@ -1,0 +1,819 @@
+{% extends 'base.html' %}
+{% load table_extras %}
+
+{% block title %}Floor Management 2.0 - EasyServe{% endblock %}
+
+{% block extra_css %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<style>
+    :root {
+        --floor-bg: #030408; /* Darker Midnight */
+        --accent-gold: #d4af37;
+        --grid-line: rgba(212, 175, 55, 0.12);
+        --glass-bg: rgba(15, 23, 42, 0.35); /* ARCHITECTURAL TRANSPARENCY */
+        --glass-border: rgba(212, 175, 55, 0.2);
+        --panel-bg: rgba(6, 9, 16, 0.7);
+        
+        --status-available: #d4af37;
+        --status-occupied: #ffffff;
+        --status-reserved: #94a3b8;
+        --status-ready: #fbbf24;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: var(--floor-bg);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .floor-dashboard {
+        height: calc(100vh - 64px);
+        display: flex;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ambient-bg {
+        position: absolute;
+        inset: 0;
+        background: 
+            radial-gradient(circle at 10% 20%, rgba(212, 175, 55, 0.03) 0%, transparent 40%),
+            radial-gradient(circle at 90% 80%, rgba(212, 175, 55, 0.02) 0%, transparent 40%);
+        filter: blur(100px);
+        z-index: 0;
+    }
+
+    @keyframes drifting-light {
+        0% { transform: scale(1) translate(0, 0); }
+        100% { transform: scale(1.3) translate(5%, 5%); }
+    }
+
+    .main-canvas {
+        flex: 1;
+        position: relative;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        z-index: 1;
+    }
+
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 0 1rem;
+    }
+
+    .floor-tabs {
+        display: flex;
+        gap: 0.5rem;
+        background: var(--panel-bg);
+        backdrop-filter: blur(25px) saturate(180%);
+        -webkit-backdrop-filter: blur(25px) saturate(180%);
+        padding: 0.4rem;
+        border-radius: 50px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .tab-btn {
+        padding: 0.6rem 1.5rem;
+        border-radius: 30px;
+        color: rgba(255,255,255,0.6);
+        font-weight: 700;
+        font-size: 0.8rem;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .tab-btn.active {
+        background: rgba(212, 175, 55, 0.2);
+        color: var(--accent-gold);
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+        border: 1px solid var(--accent-gold);
+    }
+
+    .controls {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .control-btn {
+        background: var(--panel-bg);
+        border: 1px solid var(--glass-border);
+        color: white;
+        padding: 0.6rem 1.2rem;
+        border-radius: 12px;
+        backdrop-filter: blur(20px);
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.8rem;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+    }
+
+    .control-btn.edit-mode-active {
+        background: #ef4444;
+        border-color: #ef4444;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+    }
+
+    /* Technical Blueprint Background */
+    .floor-canvas {
+        flex: 1;
+        position: relative;
+        background: var(--floor-bg);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 32px;
+        overflow: hidden;
+        box-shadow: 
+            0 25px 50px -12px rgba(0,0,0,0.5),
+            inset 0 0 100px rgba(0,0,0,0.9);
+    }
+
+    .grid-pattern {
+        position: absolute;
+        inset: 0;
+        background-size: 60px 60px;
+        background-image:
+            linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    /* Table Node - Elite Neon Glass */
+    .table-card {
+        position: absolute;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--glass-bg);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 10;
+        overflow: hidden;
+    }
+
+    /* Halo Ring for Circles (Fix for Orb Issue) */
+    .table-card.shape-circle {
+        overflow: visible;
+        border-radius: 50% !important;
+        background: rgba(15, 23, 42, 0.2) !important; /* Extra thin for circles */
+    }
+    .table-card.shape-circle .status-ribbon { display: none; }
+    
+    .table-card.shape-circle .halo-ring {
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 3px solid transparent; /* THE RING */
+        transition: all 0.3s;
+        z-index: -1;
+    }
+
+    /* Transparent Halo Rings (Fix for solid colors) */
+    .halo-ring.available { border-color: var(--accent-gold); box-shadow: 0 0 20px var(--accent-gold), inset 0 0 10px var(--accent-gold); }
+    .halo-ring.occupied { border-color: #ffffff; box-shadow: 0 0 20px #ffffff, inset 0 0 10px #ffffff; }
+    .halo-ring.reserved { border-color: rgba(255,255,255,0.2); }
+
+    /* Ribbons for Rectangles */
+    .status-ribbon {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        z-index: 2;
+    }
+    .status-ribbon.available { background: var(--accent-gold); box-shadow: 0 0 15px var(--accent-gold); }
+    .status-ribbon.occupied { background: #ffffff; box-shadow: 0 0 15px #ffffff; }
+
+    .table-card:hover {
+        transform: translateY(-8px) scale(1.03);
+        border-color: var(--accent-gold);
+        background: rgba(15, 23, 42, 0.5);
+    }
+
+    /* Decor Overlay Fixes */
+    .type-plant { 
+        background: radial-gradient(circle at center, rgba(34, 197, 94, 0.15), transparent);
+        border: none;
+        animation: plant-sway 6s ease-in-out infinite alternate;
+    }
+    @keyframes plant-sway { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
+
+    .type-wall { 
+        background: linear-gradient(to right, rgba(255,255,255,0.02), rgba(255,255,255,0.08)); 
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Food Ready Pulse - Technical Indicator */
+    .food-ready-pulse {
+        animation: pulse-ready-glow 1.5s infinite;
+        border: 2px solid var(--status-ready) !important;
+    }
+
+    @keyframes pulse-ready-glow {
+        0%, 100% { box-shadow: 0 0 15px rgba(217, 70, 239, 0.2); background: rgba(217, 70, 239, 0.05); }
+        50% { box-shadow: 0 0 30px rgba(217, 70, 239, 0.5); background: rgba(217, 70, 239, 0.15); }
+    }
+
+    .status-ribbon {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+    
+    /* Attached / Combined Table Styles */
+    .table-card.is-attached {
+        border-radius: 0;
+        box-shadow: none;
+        border-left: 1px dashed rgba(255,255,255,0.1) !important;
+    }
+    
+    .table-card.selection-active {
+        outline: 2px solid var(--accent-gold);
+        outline-offset: 4px;
+        box-shadow: 0 0 40px rgba(212, 175, 55, 0.5);
+        transform: scale(1.05);
+    }
+    
+    .merge-badge {
+        position: absolute;
+        top: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--accent-gold);
+        color: black;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 900;
+        z-index: 100;
+        white-space: nowrap;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+
+    .table-name { font-weight: 800; font-size: 1.1rem; color: white; margin-bottom: 2px; }
+    .table-meta { font-size: 0.7rem; color: rgba(255,255,255,0.4); font-weight: 600; text-transform: uppercase; }
+
+    /* Decor Styles */
+    .decor-item {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255,255,255,0.2);
+        z-index: 5;
+    }
+
+    .type-plant { background: rgba(22, 163, 74, 0.1); border: 1px solid rgba(22, 163, 74, 0.3); color: #22c55e; }
+    .type-wall { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); }
+    .type-counter { background: rgba(255,255,255,0.08); border-bottom: 4px solid rgba(255,255,255,0.2); }
+    .type-pillar { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+
+    .decor-label {
+        position: absolute;
+        bottom: -20px;
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.3);
+    }
+
+    /* Inspector Panel */
+    .inspector-panel {
+        width: 0;
+        background: var(--panel-bg);
+        backdrop-filter: blur(50px);
+        border-left: 1px solid var(--glass-border);
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 200;
+    }
+
+    .inspector-panel.active { width: 400px; }
+    .panel-header { padding: 2rem; border-bottom: 1px solid var(--glass-border); }
+    .panel-content { flex: 1; padding: 2rem; overflow-y: auto; }
+    .panel-footer { padding: 2rem; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Inspector UI Components */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 1.25rem;
+        border-radius: 100px;
+        font-size: 0.8rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #000000 !important; /* Force visibility */
+        box-shadow: 0 4px 15px rgba(255,255,255,0.2);
+        border: 1px solid rgba(0,0,0,0.1);
+        min-width: 100px;
+        line-height: 1;
+    }
+
+    .order-item-mini {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem;
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s;
+    }
+    .order-item-mini:hover {
+        background: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.15);
+        transform: translateX(4px);
+    }
+
+    .item-price {
+        color: var(--accent-gold);
+        font-weight: 900;
+        font-size: 1.1rem;
+    }
+
+    .panel-header { 
+        padding: 2.5rem; 
+        background: linear-gradient(to bottom, rgba(234, 179, 8, 0.05), transparent);
+        border-bottom: 1px solid var(--glass-border); 
+        display: flex; /* Added for alignment */
+        justify-content: space-between;
+        align-items: center;
+    }
+    .panel-content { flex: 1; padding: 2.5rem; overflow-y: auto; }
+    .panel-footer { padding: 2.5rem; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 1rem; }
+
+    .action-btn {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+    }
+    .btn-primary { background: var(--accent-gold); color: black; box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2); }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(212, 175, 55, 0.4); }
+    .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: white; }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: white; }
+
+    .edit-overlay {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        z-index: 1000;
+        display: none;
+    }
+
+    .dragging { opacity: 0.7; transform: scale(1.1); z-index: 2000; outline: 2px solid white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="floor-dashboard">
+    <div class="ambient-bg"></div>
+    
+    <div class="main-canvas">
+        <div class="top-bar">
+            <div class="floor-tabs">
+                {% for section in sections %}
+                    <button class="tab-btn {% if forloop.first %}active{% endif %}" 
+                            onclick="switchSection('{{ section.id }}', this)">
+                        <i class="fas fa-layer-group"></i>
+                        {{ section.name }}
+                    </button>
+                {% endfor %}
+            </div>
+
+            <div class="controls">
+                <button class="control-btn" id="combine-mode-btn" onclick="toggleCombineMode()" style="background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3);">
+                    <i class="fas fa-link"></i>
+                    Combine Tables
+                </button>
+                <button class="control-btn" id="edit-layout-btn" onclick="toggleEditMode()">
+                    <i class="fas fa-arrows-up-down-left-right"></i>
+                    Edit Layout
+                </button>
+            </div>
+        </div>
+        
+        <div id="combine-bar" style="display: none; background: #38bdf8; color: white; padding: 1rem 2rem; border-radius: 12px; margin-bottom: 1rem; justify-content: space-between; align-items: center; box-shadow: 0 10px 20px rgba(56, 189, 248, 0.2);">
+            <div>
+                <b id="selection-count">0</b> tables selected for merging
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="commitCombination()" class="action-btn" style="background: white; color: #38bdf8; padding: 0.5rem 1.5rem; border-radius: 8px; border: none; font-weight: 800; cursor: pointer;">CONFIRM MERGE</button>
+                <button onclick="toggleCombineMode()" class="action-btn" style="background: rgba(0,0,0,0.2); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">CANCEL</button>
+            </div>
+        </div>
+
+        <div class="floor-canvas" id="canvas-container">
+            <div class="grid-pattern"></div>
+            <div class="edit-overlay" id="edit-label">LAYOUT MODE ACTIVE - DRAG ELEMENTS</div>
+            
+            <div id="dynamic-grid"
+                 hx-get="{{ request.path }}" 
+                 hx-trigger="every 10s" 
+                 hx-swap="innerHTML"
+                 hx-headers='{"HX-Request": "true"}'
+                 hx-vals='js:{active_section_id: activeSectionId}'>
+                {% include 'tables/includes/map_grid.html' %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspector Panel -->
+    <div class="inspector-panel" id="inspector">
+        <div class="panel-header">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <h2 id="inspect-title" style="margin: 0; color: white;">Select a Table</h2>
+                <button onclick="closeInspector()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <div id="inspect-status" class="status-badge"></div>
+        </div>
+        
+        <div class="panel-content" id="panel-body">
+            <div id="empty-state" style="text-align: center; margin-top: 4rem; opacity: 0.3;">
+                <i class="fas fa-info-circle fa-4x" style="margin-bottom: 1rem;"></i>
+                <p>Click a table to view details</p>
+            </div>
+            
+            <div id="order-details" style="display: none;">
+                <div id="associated-tables" style="margin-bottom: 1rem; padding: 10px; background: rgba(56, 189, 248, 0.1); border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.2); display: none;">
+                    <div style="font-size: 0.65rem; color: #38bdf8; font-weight: 800; text-transform: uppercase; margin-bottom: 5px;">Linked Tables (GROUP)</div>
+                    <div id="linked-list" style="color: white; font-size: 0.85rem; font-weight: 600;"></div>
+                </div>
+                
+                <h4 style="color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-bottom: 1.5rem;">Active Order</h4>
+                <div id="items-list"></div>
+                
+                <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: rgba(255,255,255,0.5);">Subtotal</span>
+                        <b id="inspect-subtotal" style="color: white;">₹0.00</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 1.2rem;">
+                        <span style="color: white; font-weight: 800;">TOTAL</span>
+                        <b id="inspect-total" style="color: #f97316;">₹0.00</b>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-footer" id="inspect-footer" style="display: none;">
+            <button id="pos-btn" class="action-btn btn-primary" onclick="goToPOS()">
+                <i class="fas fa-cash-register"></i>
+                OPEN POS
+            </button>
+            <button id="split-btn" class="action-btn btn-outline" style="border-color: #ef4444; color: #ef4444; display: none;" onclick="commitSplit()">
+                <i class="fas fa-unlink"></i>
+                UNGROUP TABLES
+            </button>
+            <button id="mark-available-btn" class="action-btn btn-outline" style="border-color: #10b981; color: #10b981; display: none;" onclick="commitMarkAvailable()">
+                <i class="fas fa-check-circle"></i>
+                MARK AS AVAILABLE
+            </button>
+            <button id="print-btn" class="action-btn btn-outline" onclick="printTableBill()">
+                <i class="fas fa-print"></i>
+                PRINT BILL
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let isEditMode = false;
+    let isCombineMode = false;
+    let selectedTables = [];
+    let selectedTableId = null;
+    let currentOrderId = null;
+    let activeSectionId = "{% for s in sections %}{% if forloop.first %}{{ s.id }}{% endif %}{% endfor %}";
+
+    function toggleCombineMode() {
+        if (isEditMode) return;
+        isCombineMode = !isCombineMode;
+        selectedTables = [];
+        
+        const btn = document.getElementById('combine-mode-btn');
+        const bar = document.getElementById('combine-bar');
+        
+        if (isCombineMode) {
+            btn.classList.add('active');
+            bar.style.display = 'flex';
+            document.querySelectorAll('.table-card').forEach(t => t.classList.remove('selection-active'));
+        } else {
+            btn.classList.remove('active');
+            bar.style.display = 'none';
+            document.querySelectorAll('.table-card').forEach(t => t.classList.remove('selection-active'));
+        }
+        closeInspector();
+    }
+
+    function selectTable(id) {
+        if (!isCombineMode) {
+            inspectTable(id);
+            return;
+        }
+        
+        const index = selectedTables.indexOf(id);
+        const card = document.getElementById(`table-${id}`);
+        
+        if (index > -1) {
+            selectedTables.splice(index, 1);
+            card.classList.remove('selection-active');
+        } else {
+            selectedTables.push(id);
+            card.classList.add('selection-active');
+        }
+        
+        document.getElementById('selection-count').innerText = selectedTables.length;
+    }
+
+    async function commitCombination() {
+        if (selectedTables.length < 2) {
+            alert("Select at least 2 tables to merge");
+            return;
+        }
+        
+        const primaryId = selectedTables[0];
+        const secondaryIds = selectedTables.slice(1);
+        
+        try {
+            const res = await fetch('/api/orders/combine_tables/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ primary_table_id: primaryId, secondary_table_ids: secondaryIds })
+            });
+            const data = await res.json();
+            if (data.status === 'tables_combined') {
+                toggleCombineMode();
+                location.reload(); // Refresh to show snapped positions and updated data
+            }
+        } catch (err) {
+            console.error("Combination failed", err);
+        }
+    }
+
+    async function commitSplit() {
+        if (!currentOrderId) return;
+        if (!confirm("Are you sure you want to ungroup these tables?")) return;
+        
+        try {
+            const res = await fetch(`/api/orders/${currentOrderId}/split_tables/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await res.json();
+            if (data.status === 'tables_split') {
+                location.reload();
+            }
+        } catch (err) {
+            console.error("Split failed", err);
+        }
+    }
+
+    async function commitMarkAvailable() {
+        if (!selectedTableId) return;
+        if (!confirm("Manually clear this table and mark as Available?")) return;
+        
+        try {
+            const res = await fetch(`/tables/api/tables/${selectedTableId}/mark_available/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await res.json();
+            if (data.status === 'table_cleared') {
+                location.reload();
+            }
+        } catch (err) {
+            console.error("Clear failed", err);
+        }
+    }
+
+    function switchSection(id, btn) {
+        if (isEditMode) return;
+        activeSectionId = id;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.section-group').forEach(g => g.style.display = 'none');
+        document.getElementById(`section-${id}`).style.display = 'block';
+        closeInspector();
+    }
+
+    async function inspectTable(id) {
+        if (isEditMode || isCombineMode) return;
+        selectedTableId = id;
+        const card = document.getElementById(`table-${id}`);
+        if (!card) return;
+
+        document.getElementById('inspector').classList.add('active');
+        document.getElementById('inspect-title').innerText = card.dataset.name;
+        
+        const status = card.dataset.status;
+        const orderId = card.dataset.orderId;
+        const statusBadge = document.getElementById('inspect-status');
+        
+        statusBadge.innerText = orderId ? 'Occupied' : status;
+        statusBadge.style.background = orderId ? 'var(--status-occupied)' : 'var(--status-available)';
+        
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('inspect-footer').style.display = 'flex';
+        
+        // Show Mark Available button if not already available
+        document.getElementById('mark-available-btn').style.display = (status !== 'available' || orderId) ? 'flex' : 'none';
+
+        // Show Ungroup button if this table is attached
+        const isAttached = card.classList.contains('is-attached') || card.querySelector('.merge-badge');
+        document.getElementById('split-btn').style.display = isAttached ? 'flex' : 'none';
+
+        // Reset details
+        const itemsList = document.getElementById('items-list');
+        itemsList.innerHTML = '<div style="opacity: 0.5; font-size: 0.8rem;">Loading items...</div>';
+        document.getElementById('inspect-subtotal').innerText = '₹0.00';
+        document.getElementById('inspect-total').innerText = '₹0.00';
+
+        if (orderId) {
+            currentOrderId = orderId;
+            document.getElementById('order-details').style.display = 'block';
+            
+            // Show associated tables if applicable
+            if (isAttached) {
+                document.getElementById('associated-tables').style.display = 'block';
+                document.getElementById('linked-list').innerText = "This table is part of a merged group.";
+            } else {
+                document.getElementById('associated-tables').style.display = 'none';
+            }
+
+            // Fetch Real Order Data
+            try {
+                const response = await fetch(`/api/orders/${orderId}/`);
+                const order = await response.json();
+                
+                // Populate items
+                itemsList.innerHTML = '';
+                if (order.items && order.items.length > 0) {
+                    order.items.forEach(item => {
+                        const itemEl = document.createElement('div');
+                        itemEl.className = 'order-item-mini';
+                        itemEl.innerHTML = `
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem;">${item.menu_item_name}</div>
+                                <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 4px;">Qty: ${item.quantity} x ₹${item.price}</div>
+                            </div>
+                            <div class="item-price">₹${(item.price * item.quantity).toFixed(2)}</div>
+                        `;
+                        itemsList.appendChild(itemEl);
+                    });
+                } else {
+                    itemsList.innerHTML = '<div style="opacity: 0.5; font-size: 0.8rem;">No items ordered yet</div>';
+                }
+
+                document.getElementById('inspect-subtotal').innerText = `₹${parseFloat(order.subtotal).toFixed(2)}`;
+                document.getElementById('inspect-total').innerText = `₹${parseFloat(order.total_amount).toFixed(2)}`;
+
+            } catch (err) {
+                console.error("Order fetch failed", err);
+                itemsList.innerHTML = '<div style="color: #ef4444; font-size: 0.8rem;">Error loading items</div>';
+            }
+        } else {
+            currentOrderId = null;
+            document.getElementById('order-details').style.display = 'none';
+        }
+    }
+
+    function closeInspector() {
+        document.getElementById('inspector').classList.remove('active');
+        selectedTableId = null;
+    }
+
+    function goToPOS() {
+        if (!selectedTableId) return;
+        let url = `/pos/?table_id=${selectedTableId}`;
+        if (currentOrderId) url += `&order_id=${currentOrderId}`;
+        window.location.href = url;
+    }
+
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('edit-layout-btn');
+        const overlay = document.getElementById('edit-label');
+        const canvas = document.getElementById('canvas-container');
+        
+        if (isEditMode) {
+            btn.classList.add('edit-mode-active');
+            btn.innerHTML = '<i class="fas fa-check"></i> Save';
+            overlay.style.display = 'block';
+            canvas.setAttribute('hx-disable', 'true'); // Disable polling in edit mode
+            enableDragging();
+        } else {
+            btn.classList.remove('edit-mode-active');
+            btn.innerHTML = '<i class="fas fa-arrows-up-down-left-right"></i> Edit Layout';
+            overlay.style.display = 'none';
+            canvas.removeAttribute('hx-disable');
+            disableDragging();
+        }
+    }
+
+    // Event Delegation for Dragging (Fixed for HTMX)
+    const canvasContainer = document.getElementById('canvas-container');
+    
+    canvasContainer.addEventListener('mousedown', function(e) {
+        if (!isEditMode) return;
+        
+        const el = e.target.closest('.table-card, .decor-item');
+        if (!el) return;
+        
+        e.preventDefault();
+        
+        let shiftX = e.clientX - el.getBoundingClientRect().left;
+        let shiftY = e.clientY - el.getBoundingClientRect().top;
+        const containerRect = canvasContainer.getBoundingClientRect();
+
+        el.classList.add('dragging');
+
+        function moveAt(pageX, pageY) {
+            let leftPct = ((pageX - containerRect.left - shiftX) / containerRect.width) * 100;
+            let topPct = ((pageY - containerRect.top - shiftY) / containerRect.height) * 100;
+            leftPct = Math.max(0, Math.min(leftPct, 95));
+            topPct = Math.max(0, Math.min(topPct, 95));
+            el.style.left = leftPct + '%';
+            el.style.top = topPct + '%';
+        }
+
+        function onMouseMove(e) { moveAt(e.pageX, e.pageY); }
+        document.addEventListener('mousemove', onMouseMove);
+
+        document.onmouseup = async function() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.onmouseup = null;
+            el.classList.remove('dragging');
+            
+            const id = el.dataset.id;
+            const type = el.dataset.type;
+            const x = Math.round(parseFloat(el.style.left));
+            const y = Math.round(parseFloat(el.style.top));
+            
+            const apiUrl = type === 'table' ? `/tables/api/tables/${id}/` : `/tables/api/decor/${id}/`;
+            
+            try {
+                await fetch(apiUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ x_pos: x, y_pos: y })
+                });
+            } catch (err) { console.error("Save failed", err); }
+        };
+    });
+
+    // Remove legacy dragging init
+    function enableDragging() {}
+    function disableDragging() {}
+
+    // Re-initialize scripts after HTMX partial load
+    document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+        // No longer needed thanks to event delegation
+    });
+</script>
+{% endblock %}
